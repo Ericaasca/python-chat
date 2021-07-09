@@ -9,12 +9,21 @@ import os
 import random
 
 sharedPrime = 23
-sharedBase = 7
-d2_secret = random.randint(3, 7000)
+sharedBase = 5
+secret = random.randint(3, 70000)
 public_key = 0
 cipher = 0
 iv = b'\x84E\xd0\xd1Kv\x13b'
 i = 0
+pub_key = (sharedBase**secret) % sharedPrime
+
+#print(d2_secret)
+
+def sendkey():
+    global pub_key
+    client_socket.send(bytes(str(pub_key), encoding="utf8"))
+    print("Public key: ", pub_key)
+    return
 
 def receive():
     """Handles receiving of messages."""
@@ -23,35 +32,32 @@ def receive():
             global cipher
             if cipher == 0:
                 msg = client_socket.recv(BUFSIZ).decode("utf8")
-                public_key = msg
-                public_key = ''.join(c for c in msg if c.isdigit())
-                shared_secret = (int(public_key)**d2_secret) % sharedPrime
-                cipher = blowfish.Cipher(bytes(shared_secret))
+                print(msg)
+                if "exchangekeys" in msg:
+                    pub_key2 = ''.join(c for c in msg if c.isdigit())
+                    print("Received Key: ", pub_key2)
+                    shared_secret = (int(pub_key2)**secret) % sharedPrime
+                    print("shared secret: ", shared_secret)
+                    cipher = blowfish.Cipher(bytes(shared_secret))
             else:
                 msg = client_socket.recv(BUFSIZ)
+                print("Mensagem encriptada: ", msg)
                 msg = b"".join(cipher.decrypt_cfb(msg, iv))
+                print("Mensagem desencriptada: ", msg)
                 msg_list.insert(tkinter.END, msg)
         except OSError:  # Possibly client has left the chat.
             break
 
-
 def send(event=None):  # event is passed by binders.
-    global i
-    if i == 0:
-        msg = my_msg.get()
-        my_msg.set("")
-        client_socket.send(bytes(msg, "utf8"))
-        i += 1
-    else:
-        """Handles sending of messages."""
-        msg = my_msg.get()
-        if msg == "{quit}":
-            client_socket.close()
-            top.quit()
-        msg = b"".join(cipher.encrypt_cfb(bytes(msg, encoding="utf8"), iv))
-        print(msg)
-        my_msg.set("")  # Clears input field.
-        client_socket.send(msg)
+    """Handles sending of messages."""
+    msg = my_msg.get()
+    if msg == "{quit}":
+        client_socket.close()
+        top.quit()
+    msg = b"".join(cipher.encrypt_cfb(bytes(msg, encoding="utf8"), iv))
+    print("Mensagem enviada: ", msg)
+    my_msg.set("")  # Clears input field.
+    client_socket.send(msg)
 
 def on_closing(event=None):
     """This function is to be called when the window is closed."""
@@ -93,6 +99,8 @@ ADDR = (HOST, PORT)
 
 client_socket = socket(AF_INET, SOCK_STREAM)
 client_socket.connect(ADDR)
+
+sendkey()
 
 receive_thread = Thread(target=receive)
 receive_thread.start()
