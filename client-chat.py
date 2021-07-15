@@ -8,16 +8,13 @@ import blowfish
 import os
 import random
 
-sharedPrime = 23
-sharedBase = 5
-secret = random.randint(3, 70000)
+sharedPrime = 167
+sharedBase = 40
+secret = random.randint(1000, 30000)
 public_key = 0
 cipher = 0
 iv = b'\x84E\xd0\xd1Kv\x13b'
-i = 0
 pub_key = (sharedBase**secret) % sharedPrime
-
-#print(d2_secret)
 
 def sendkey():
     global pub_key
@@ -34,11 +31,14 @@ def receive():
                 msg = client_socket.recv(BUFSIZ).decode("utf8")
                 print(msg)
                 if "exchangekeys" in msg:
+                    print("Scret number: ", secret)
                     pub_key2 = ''.join(c for c in msg if c.isdigit())
                     print("Received Key: ", pub_key2)
                     shared_secret = (int(pub_key2)**secret) % sharedPrime
                     print("shared secret: ", shared_secret)
-                    cipher = blowfish.Cipher(bytes(shared_secret))
+                    key = shared_secret.to_bytes(4, byteorder='big')
+                    print(key)
+                    cipher = blowfish.Cipher(key)
             else:
                 msg = client_socket.recv(BUFSIZ)
                 print("Mensagem encriptada: ", msg)
